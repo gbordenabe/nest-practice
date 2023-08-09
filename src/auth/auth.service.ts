@@ -43,8 +43,12 @@ export class AuthService {
     return await this.userService.create(registerDto);
   }
 
-  async verifyEmail(emailTokenDto: EmailTokenDto): Promise<any> {
-    const user = await this.userService.verifyUser(emailTokenDto.emailToken);
-    return user;
+  async verifyEmail(emailToken: string): Promise<any> {
+    try {
+      await this.userService.verifyUser(emailToken);
+      return 'Email verified successfully';
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
   }
 }

@@ -8,6 +8,7 @@ import {
   Delete,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -31,8 +32,8 @@ export class AuthController {
   }
 
   @HttpCode(HttpStatus.OK)
-  @Post('verify-email')
-  verifyEmail(@Body() emailTokenDto: EmailTokenDto) {
-    return this.authService.verifyEmail(emailTokenDto);
+  @Get('verify-email')
+  verifyEmail(@Query('emailToken') emailToken: string) {
+    return this.authService.verifyEmail(emailToken);
   }
 }

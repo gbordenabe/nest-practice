@@ -13,13 +13,15 @@ import { User } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { EncryptionService } from 'src/common/encryption.service';
 import { RandomHexService } from 'src/common/randomHex.service';
+import { EmailService } from 'src/common/email.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(USER.name) private userModel: Model<User>,
     private readonly encryptionService: EncryptionService,
-    private readonly randomHexService: RandomHexService
+    private readonly randomHexService: RandomHexService,
+    private readonly emailService: EmailService
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -34,6 +36,7 @@ export class UserService {
       });
       createdUser.emailToken = this.randomHexService.generateRandomHex();
       await createdUser.save();
+      this.emailService.sendMail(createdUser.email, createdUser.emailToken);
       return await this.findOneByEmail(createUserDto.email);
     } catch (error) {
       throw new HttpException(
