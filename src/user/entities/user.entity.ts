@@ -1,7 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Pet } from 'src/pet/entities/pet.entity';
-import * as mongoose from 'mongoose';
-import { PET } from 'src/common/models';
 
 @Schema()
 export class User {
@@ -12,16 +9,19 @@ export class User {
   lastName: string;
 
   @Prop({ required: true, unique: true })
-  dni: number;
-
-  @Prop({ required : true })
   username: string;
 
-  @Prop({ required : true, select: false })
+  @Prop({ required: true, select: false })
   password: string;
 
-  @Prop({ type: [{ type: mongoose.Schema.Types.ObjectId, ref: PET.name }], default: [] })
-  pets: Pet[];
+  @Prop({ required: true, unique: false })
+  email: string;
+
+  @Prop({ default: false })
+  isVerified: boolean;
+
+  @Prop({ default: null, select: false })
+  emailToken: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

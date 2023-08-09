@@ -1,4 +1,10 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -6,24 +12,34 @@ import { USER } from 'src/common/models';
 import { User } from './entities/user.entity';
 import { Model } from 'mongoose';
 import { EncryptionService } from 'src/common/encryption.service';
+import { RandomHexService } from 'src/common/randomHex.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(USER.name) private userModel: Model<User>,
-    private readonly encryptionService: EncryptionService
+    private readonly encryptionService: EncryptionService,
+    private readonly randomHexService: RandomHexService
   ) {}
 
   async create(createUserDto: CreateUserDto) {
     try {
-      const existingUser = await this.findOneByDni(createUserDto.dni)
-      if(existingUser) throw new BadRequestException(`User with dni ${createUserDto.dni} alredy exists`)
-      const hashedPassword = await this.encryptionService.hashPassword(createUserDto.password)
-      const createdUser = new this.userModel({...createUserDto, password: hashedPassword});
-      await createdUser.save()
-      return await this.findOneByDni(createUserDto.dni)
+      const existingUser = await this.findOneByEmail(createUserDto.email);
+      if (existingUser)
+        throw new BadRequestException(`User with email ${createUserDto.email} alredy exists`);
+      const hashedPassword = await this.encryptionService.hashPassword(createUserDto.password);
+      const createdUser = new this.userModel({
+        ...createUserDto,
+        password: hashedPassword,
+      });
+      createdUser.emailToken = this.randomHexService.generateRandomHex();
+      await createdUser.save();
+      return await this.findOneByEmail(createUserDto.email);
     } catch (error) {
-      throw new HttpException(error.message, error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message,
+        error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR
+      );
     }
   }
 
@@ -32,15 +48,58 @@ export class UserService {
   }
 
   async findOneByUsername(username: string) {
-    return await this.userModel.findOne({username});
+    try {
+      return await this.userModel.findOne({ username });
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
-  async findOneByDni(dni: number) {
-    return await this.userModel.findOne({dni});
+  async findOneByEmail(email: string) {
+    try {
+      return await this.userModel.findOne({ email });
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
-  async findOneByDniWithPassword(dni: number) {
-    return await this.userModel.findOne({dni}).select('+password');
+  async findOneByUsernameWithPassword(username: string) {
+    try {
+      const user = await this.userModel.findOne({ username }).select('+password');
+      if (!user) {
+        throw new UnauthorizedException('User not found');
+      }
+      return user;
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  async verifyUser(emailToken: string) {
+    try {
+      const user = await this.userModel.findOne({ emailToken }).select('+emailToken');
+      if (!user) {
+        throw new BadRequestException('emailToken not found');
+      }
+      user.isVerified = true;
+      user.emailToken = null;
+      await user.save();
+      return user;
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status ? error.status : HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   update(id: number, updateUserDto: UpdateUserDto) {

@@ -1,2 +1,1 @@
-export const USER = { name: 'User' }
-export const PET = { name: 'Pet' }
+export const USER = { name: 'User' };
